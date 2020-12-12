@@ -1,0 +1,12 @@
+CC=clang
+
+all: 1 2
+
+1: 1.c
+	$(CC) -o $@ -Wall $< -g -lm
+2: 2.c
+	$(CC) -o $@ -Wall $< -g -lm
+clean:
+	rm 1 2
+
+.PHONY: clean
