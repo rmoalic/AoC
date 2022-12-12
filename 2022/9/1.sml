@@ -16,32 +16,14 @@ exception ParseError
 
 fun stripLast str = String.substring(str, 0, ((String.size str) - 1));
 
+fun printIntTuple (x, y) = "(" ^ (Int.toString x) ^ ", " ^ (Int.toString y) ^ ")"
+
 fun toDir c = case c of
                   #"U" => Up
                 | #"D" => Down
                 | #"L" => Left
                 | #"R" => Right
                 | _ => raise ParseError
-(*
-fun printBoard (l, w) ((hx, hy), (tx, ty)) = let
-    fun loop x ~1 = ()
-      | loop x y = let
-        val c = if x = hx andalso y = hy
-                then #"H"
-                else if x = tx andalso y = ty
-                then #"T"
-                else #"."
-        val nx = x + 1
-      in
-        print (Char.toString c);
-        if nx > w
-        then (print "\n"; loop 0 (y - 1))
-        else loop (x + 1) y
-    end
-in
-    loop 0 l
-end
-val pp = printBoard boardSize*)
 
 fun printPBMHeader (bx, by, ux, uy) = let
     val x = Int.abs(bx) + ux
@@ -75,7 +57,7 @@ fun stepTail ((head, tail): pos * pos) = let
     val sX = Int.sign diffX
     val sY = Int.sign diffY
 in
-    (*print ("(" ^ (Int.toString sX) ^ ", " ^ (Int.toString sY) ^ ")\n");*)
+    (*print ((printIntTuple (sX, sY)) ^ "\n");*)
     if Int.abs (diffX) > 1 orelse Int.abs diffY > 1
     then ((#1 tail) + sX, (#2 tail) + sY)
     else tail
@@ -87,32 +69,54 @@ fun stepHead (hX, hY) dir n = case dir of
                                 | Left => (hX - n, hY)
                                 | Right => (hX + n, hY)
 
-fun stepHeadTail step (head, tail) = let
+fun stepTails ((head, tails): pos * pos list) = let
+    val all = head :: tails
+    fun loop [] = []
+      | loop (a :: b :: xs) = stepTail (a, b) :: loop (b :: xs)
+      | loop [b] = []
+in
+    loop all
+end
+
+signature S =
+sig
+    val stepHead : pos -> dir -> int
+    val stepTails : pos * pos list -> pos list
+    val stepHeadTail : way -> pos * pos list -> pos * pos list list
+    val followPath : way list -> int -> PosSet.set
+end
+
+fun stepHeadTail step (head, tails) = let
     val nhead = stepHead head (#1 step) (#2 step)
     fun loop (_, 0) (h, t) = []
       | loop (dir, pas) (h, t) = let
           val nhead = stepHead h dir 1
-          val ntail = stepTail (nhead, t)
-      in
-          (*pp (nhead, ntail);
-          print "----\n";*)
+          val ntail = stepTails (nhead, t)
+      in(*
+          print ((Int.toString pas) ^ (printIntTuple head) ^ " -> ");
+          print (String.concatWith ", "(map printIntTuple ntail));
+          print "\n";*)
           ntail :: loop (dir, pas - 1) (nhead, ntail)
       end
 in
-    (nhead, loop step (head, tail))
+    (nhead, loop step (head, tails))
 end
-       
-fun followPath path = let
+
+(* BUG: some of the last tails positions might be missing for some reason (see input_test2.txt) *)
+fun followPath path ntails = let
+    val start = ((0, 0), List.tabulate (ntails, (fn _ => (0, 0))))
     fun loop [] _ = PosSet.empty
-      | loop (step :: xs) (head, tail) = let
-          (*val _ = (pp (head, tail); print "=============\n\n")*)
-          val (nhead, tails) = stepHeadTail step (head, tail)
-          val ntail = List.last tails
-      in
-          PosSet.addList ((loop xs (nhead, ntail)), tails)
+      | loop (step :: xs) (head, tails) = let
+          val (nhead, tailspos): pos * pos list list = stepHeadTail step (head, tails)
+          val ntail: pos list = List.last tailspos
+      in(*
+          print ("nhead: " ^ (printIntTuple nhead) ^ "\n");
+          print (String.concatWith ", "(map printIntTuple (map List.last tailspos)));
+          print "\n";*)
+          PosSet.addList ((loop xs (nhead, ntail)), map List.last tailspos)
       end
 in
-    loop path ((0, 0), (0, 0))
+    loop path start
 end
 
 fun parseInputLine line = let
@@ -133,10 +137,20 @@ in
 end
 
 val data = parseInputFile inputFile parseInputLine
-val tailPositions = followPath data
+val tailPositions = followPath data 1
+(*
 val _ = printPBMHeader boardSize
 val _ = ptp tailPositions
 val _ = print "\n"
-
+*)
 val part1 = PosSet.numItems tailPositions
 val _ = print ("solution part 1: " ^ (Int.toString part1) ^ "\n");
+
+val tailPositions = followPath data 9
+(*
+val _ = printPBMHeader boardSize
+val _ = ptp tailPositions
+val _ = print "\n"
+*)
+val part2 = PosSet.numItems tailPositions
+val _ = print ("solution part 2: " ^ (Int.toString part2) ^ "\n");
