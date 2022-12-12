@@ -1,9 +1,17 @@
 val inputFile = "input.txt";
-val boardSize = (200, 200) (* only used for print *)
+val boardSize = (~50, ~50, 200, 150) (* only used for print *)
 
 datatype dir = Up | Left | Right | Down
 type way = dir * int
 type pos = int * int
+structure PosSet =
+RedBlackSetFn (struct
+                type ord_key = pos
+                fun compare ((a1, a2), (b1, b2)) =
+                    if a1 = b1
+                    then Int.compare (a2, b2)
+                    else Int.compare (a1, b1)
+                end)
 exception ParseError
 
 fun stripLast str = String.substring(str, 0, ((String.size str) - 1));
@@ -14,7 +22,7 @@ fun toDir c = case c of
                 | #"L" => Left
                 | #"R" => Right
                 | _ => raise ParseError
-
+(*
 fun printBoard (l, w) ((hx, hy), (tx, ty)) = let
     fun loop x ~1 = ()
       | loop x y = let
@@ -33,34 +41,33 @@ fun printBoard (l, w) ((hx, hy), (tx, ty)) = let
 in
     loop 0 l
 end
-val pp = printBoard boardSize
+val pp = printBoard boardSize*)
 
-fun printTailPositions (l, w) tailpos = let
-    fun loop x ~1 = ()
-      | loop x y = let
-        val c = if List.exists (fn (cx, cy) => cx = x andalso cy = y) tailpos
-                then #"1"
-                else #"0"
-        val nx = x + 1
-      in
-        print (Char.toString c);
-        if nx > w
-        then (print "\n"; loop 0 (y - 1))
-        else loop (x + 1) y
-    end
+fun printPBMHeader (bx, by, ux, uy) = let
+    val x = Int.abs(bx) + ux
+    val y = Int.abs(by) + uy
 in
-    loop 0 l
+    print ("P1\n" ^ (Int.toString x) ^ " " ^ (Int.toString y) ^ "\n")
+end
+
+fun printTailPositions (bx, by, ux, uy) tailpos = let
+    fun loop x y = if y <= by
+                   then ()
+                   else let
+                       val c = if PosSet.member (tailpos, (x, y))
+                               then #"1"
+                               else #"0"
+                       val nx = x + 1
+                   in
+                       print (Char.toString c);
+                       if nx >= ux
+                       then (print "\n"; loop bx (y - 1))
+                       else loop (x + 1) y
+                   end
+in
+    loop bx uy
 end
 val ptp = printTailPositions boardSize               
-
-fun unique [] = []
-  | unique (k :: xs) = let
-      val rest = List.filter (fn x => x <> k) xs
-  in
-      k :: unique rest
-  end
-
-fun countUniqueTailPositions tailpos = List.length (unique tailpos)
 
 fun stepTail ((head, tail): pos * pos) = let
     val diffX = #1 head - #1 tail
@@ -96,13 +103,13 @@ in
 end
        
 fun followPath path = let
-    fun loop [] _ = []
+    fun loop [] _ = PosSet.empty
       | loop (step :: xs) (head, tail) = let
           (*val _ = (pp (head, tail); print "=============\n\n")*)
           val (nhead, tails) = stepHeadTail step (head, tail)
           val ntail = List.last tails
       in
-          tails @ loop xs (nhead, ntail)
+          PosSet.addList ((loop xs (nhead, ntail)), tails)
       end
 in
     loop path ((0, 0), (0, 0))
@@ -127,7 +134,9 @@ end
 
 val data = parseInputFile inputFile parseInputLine
 val tailPositions = followPath data
+val _ = printPBMHeader boardSize
 val _ = ptp tailPositions
+val _ = print "\n"
 
-val part1 = countUniqueTailPositions tailPositions
+val part1 = PosSet.numItems tailPositions
 val _ = print ("solution part 1: " ^ (Int.toString part1) ^ "\n");
