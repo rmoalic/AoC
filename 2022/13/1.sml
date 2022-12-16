@@ -3,6 +3,24 @@ val inputFile = "input.txt"
 datatype mixedIntList = Int of int | List of mixedIntList list
 exception ParseError
 
+fun qsort func = let
+    fun sort [] = []
+      | sort (lhd :: ltl) = sort (List.filter (fn x => func (x, lhd)) ltl)
+                            @ [lhd]
+                            @ sort (List.filter (fn x => not (func(x, lhd))) ltl)
+in
+    sort
+end
+
+fun findi func = let
+    fun loop acc (x :: xs) = if func x
+                             then SOME (x, acc)
+                             else loop (acc + 1) xs
+      | loop acc [] = NONE
+in
+    loop 0
+end
+
 fun parseInputLine getc s = let
     val rInt = Int.scan StringCvt.DEC getc
     (*val _ = print "Start Line\n";*)
@@ -85,8 +103,16 @@ in
     readLines inStream before TextIO.closeIn inStream
 end
 
-val data = makeCouples (parseInputFile inputFile  parseInputLine)
+val data = parseInputFile inputFile  parseInputLine
 
-val part1 = solve data
+val part1 = solve (makeCouples data)
 val _ = print ("solution part 1: " ^ (Int.toString part1) ^ "\n")
 
+val k1 = List [List [Int 2]]
+val k2 = List [List [Int 6]]
+val data2 = (List.map Option.valOf (List.filter Option.isSome data)) @ (k1 :: k2 :: [])
+val sorted = qsort (fn (a, b) => compareCouple (a, b) = LESS) data2
+val (_, posk1) = valOf (findi (fn x => x = k1) sorted)
+val (_, posk2) = valOf (findi (fn x => x = k2) sorted)
+val part2 = (posk1 + 1) * (posk2 + 1)
+val _ = print ("solution part 2: " ^ (Int.toString part2) ^ "\n")
