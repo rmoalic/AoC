@@ -47,19 +47,26 @@ fun addl (x, y) n = if List.length y = 0
                     then (x @ [n], y)
                     else (n::x, y)
 
+fun move_to to mix = let
+    fun loop (x, y::xy) = if y = to
+                          then (x, y::xy)
+                          else loop (fwd (x, y::xy))
+      | loop (x, []) = raise Fail "Empty move_to"
+in
+    loop mix
+end
+
 fun move_mix (x, []) = (x, [])
   | move_mix (x, y::ys) = case y of
                               Mix n => let
-                              (* val _ = print ("move: " ^ (Int.toString n) ^ "\n") *)
                                val move = Int.abs n
                                val dir = if Int.sign n > 0
-                                         then (fwd, bwd, addr, 0)
-                                         else (bwd, fwd, addl, 1)
+                                         then (fwd, addr)
+                                         else (bwd, addl)
                                val mfwd = repeat move (#1 dir) (x, ys)
-                               val added_back = (#3 dir) mfwd (Fixed n)
-                               val mbwd = repeat (move + (#4 dir)) (#2 dir) added_back
+                               val added_back = (#2 dir) mfwd (Fixed n)
                            in
-                               mbwd
+                               added_back
                            end
                             | Fixed _ => (x, y::ys)
 
@@ -75,36 +82,31 @@ fun mix_val (x, []) = raise Fail "Empty mix_val"
                                       
 
 fun fix input = let
-    val max = (List.length (#1 input)) + 2
+    val max = (List.length (#1 input))
     fun loop lloop 0 = lloop
       | loop lloop n = let
           (* val _ = print_mixint lloop *)
           val f = fwd lloop
-          val moving = is_mix lloop
-          val s = move_mix f
+          val moving = is_mix f
       in
           if moving
-          then loop (rst s) max
-          else loop s (n - 1)
+          then
+              let
+                  val s = move_mix f              
+              in
+                  loop (rst s) max
+              end
+          else loop f (n - 1)
       end
 in
     loop input max
-end
-
-fun move_to_0 mix = let
-    fun loop (x, y::xy) = if y = (Fixed 0)
-                          then (x, y::xy)
-                          else loop (fwd (x, y::xy))
-      | loop (x, []) = raise Fail "Empty move_to_0"
-in
-    loop mix
 end
 
 fun solve1 input = let
     val size = List.length input
     val lloop: ListLoop = (input, [])
     val sol = fix lloop
-    val s0 = move_to_0 sol
+    val s0 = move_to (Fixed 0) sol
     val s1 = repeat 1000 fwd s0
     val s2 = repeat 1000 fwd s1
     val s3 = repeat 1000 fwd s2
