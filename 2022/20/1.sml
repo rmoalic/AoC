@@ -2,12 +2,12 @@ val inputFile = "input.txt";
 
 fun stripLast str = String.substring(str, 0, ((String.size str) - 1));
 
-datatype MixInt = Mix of int | Fixed of int
+datatype MixInt = Mix of LargeInt.int | Fixed of LargeInt.int
 type ListLoop = MixInt list * MixInt list
 
 fun mixint_to_string x = case x of
-                             Mix n => "m " ^ (Int.toString n)
-                           | Fixed n => "f " ^ (Int.toString n)
+                             Mix n => "m " ^ (LargeInt.toString n)
+                           | Fixed n => "f " ^ (LargeInt.toString n)
 
 fun list_to_string x = "[" ^ (String.concatWith ", " (map mixint_to_string x)) ^ "]";
 
@@ -61,11 +61,11 @@ end
 fun move_mix (x, []) = (x, [])
   | move_mix (x, y::ys) = case y of
                               Mix n => let
-                               val move = (Int.abs n) mod (mix_size (x, ys))
-                               val dir = if Int.sign n > 0
+                               val move = (LargeInt.abs n) mod Int.toLarge (mix_size (x, ys))
+                               val dir = if LargeInt.sign n > 0
                                          then (fwd, addr)
                                          else (bwd, addl)
-                               val mfwd = repeat move (#1 dir) (x, ys)
+                               val mfwd = repeat (LargeInt.toInt move) (#1 dir) (x, ys)
                                val added_back = (#2 dir) mfwd (Fixed n)
                            in
                                added_back
@@ -109,6 +109,7 @@ fun calc_sum input zero = let
     val s1 = repeat 1000 fwd s0
     val s2 = repeat 1000 fwd s1
     val s3 = repeat 1000 fwd s2
+    val _ = print ("(" ^ (LargeInt.toString (mix_val s1)) ^ ", "^ (LargeInt.toString (mix_val s2)) ^ ", "^ (LargeInt.toString (mix_val s3)) ^ ")\n")
 in
     (mix_val s1) + (mix_val s2) + (mix_val s3)
 end
@@ -135,15 +136,15 @@ end
 val test_data = [Mix 1, Mix 2, Mix ~3, Mix 3, Mix ~2, Mix 0, Mix 4]
 val test_result = [Fixed 1, Fixed 2, Fixed ~3, Fixed 4, Fixed 0, Fixed 3, Fixed ~2]
 
-val data = parseInputFile inputFile (Mix o valOf o Int.fromString);
+val data = parseInputFile inputFile (Mix o valOf o LargeInt.fromString);
 val (res1, part1) = solve1 data
 (* val _ = print_mixint (res1, []) *)
-val _ = print ("solution part 1: " ^ (Int.toString part1) ^ "\n");
+val _ = print ("solution part 1: " ^ (LargeInt.toString part1) ^ "\n");
 
 val (rest1, partt1) = solve1 test_data
 val _ = print_mixint (rest1, [])
 val ok = ListPair.allEq op= (rest1, test_result)
-val _ = print ("solution part 1 (test): " ^ (Int.toString partt1) ^ " " ^ (Bool.toString ok) ^ "\n");
+val _ = print ("solution part 1 (test): " ^ (LargeInt.toString partt1) ^ " " ^ (Bool.toString ok) ^ "\n");
 
 fun smix_val v = case v of
                      Mix n => n
@@ -165,15 +166,14 @@ in
 end
 
 
-val key = 811589153
+val key = LargeInt.fromInt 811589153
 fun addDecriptionKey x = Mix (key * (smix_val x))
 
 fun fix2 base input = let
-    (* val _ = print_mixint input *)
+    (*val _ = print_mixint input *)
     fun loop lloop [] = lloop
       | loop lloop (x::xs) = let
           val f = move_to x lloop
-          (*val _ = print_mixint f*)
           val s = move_mix f
       in
           loop (rst s) xs
@@ -183,7 +183,6 @@ in
 end
 
 fun solve2 input = let
-    val size = List.length input
     val lloop: ListLoop = (input, [])
     val mfix = fix2 input
     val sol = mix_set (repeat 10 (mix_rst o mfix) lloop)
@@ -195,11 +194,11 @@ end
 
 val data2 = map addDecriptionKey data
 val (res2, part2) = solve2 data2
-val _ = print ("solution part 2: " ^ (Int.toString part2) ^ "\n");
+val _ = print ("solution part 2: " ^ (LargeInt.toString part2) ^ "\n");
 
 val test_data2 = map addDecriptionKey test_data
 val test_result2 = [Fixed 0, Fixed ~2434767459, Fixed 1623178306, Fixed 3246356612, Fixed ~1623178306, Fixed 2434767459, Fixed 811589153]
 val (rest2, partt2) = solve2 test_data2
 val _ = print_mixint (rest2, [])
 val ok2 = ListPair.allEq op= (rest2, test_result2)
-val _ = print ("solution part 2 (test): " ^ (Int.toString partt2) ^ " " ^ (Bool.toString ok2) ^ "\n");
+val _ = print ("solution part 2 (test): " ^ (LargeInt.toString partt2) ^ " " ^ (Bool.toString ok2) ^ "\n");
