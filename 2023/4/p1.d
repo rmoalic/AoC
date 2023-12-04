@@ -1,4 +1,4 @@
-import std.stdio, std.file, std.range, std.string, std.conv, std.algorithm, std.array, std.typecons, std.container.array, std.container.slist;
+import std.stdio, std.file, std.range, std.string, std.conv, std.algorithm, std.array, std.typecons, std.container.array;
 
 string input_file = "input.txt";
 
@@ -12,8 +12,8 @@ Card parse_card(string card) {
     auto game = card.split(": ");
     int game_id = to!int(strip(game[0][5 .. $]));
     auto numbers = game[1].split(" | ");
-    int[] winning_numbers = numbers[0].split(" ").filter!(a => ! a.empty).map!(to!int).array.sort().array;
-    int[] game_numbers    = numbers[1].split(" ").filter!(a => ! a.empty).map!(to!int).array.sort().array;
+    int[] winning_numbers = numbers[0].split().map!(to!int).array.sort().array;
+    int[] game_numbers    = numbers[1].split().map!(to!int).array.sort().array;
     return Card(game_id, winning_numbers, game_numbers);
 }
 
@@ -39,6 +39,17 @@ int part2(immutable Card[] cards) {
         won_per_card[c.number - 1] = cast(int) correct_numbers.count();
     }
 
+    void rec(int curr) {
+        count[curr - 1] += 1;
+        int won = won_per_card[curr - 1];
+        for (int i = won - 1; i >= 0 ; i--) {
+            rec(curr + 1 + i);
+        }
+    }
+    for (int i = 1; i < cards.count() + 1; i++) {
+    	rec(i);
+    }
+/* // SList is very slow as a stack
     auto def = to!(int[])(iota(1, cards.count() + 1, 1).array);
     auto stack = SList!int(def);
 
@@ -51,7 +62,7 @@ int part2(immutable Card[] cards) {
         for (int i = won - 1; i >= 0 ; i--) {
             stack.insertFront(curr + 1 + i);
         }
-    }
+    }*/
     return count.sum();
 }
 
