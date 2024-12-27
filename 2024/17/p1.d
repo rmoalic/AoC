@@ -1,13 +1,13 @@
-import std.stdio, std.file, std.conv, std.algorithm, std.string, std.math, std.range, std.parallelism;
+import std.stdio, std.file, std.conv, std.algorithm, std.string, std.math, std.range, std.parallelism, std.bigint, std.container.dlist;
 
 string input_file = "input.txt";
 
 
-class Computer {
-  long A;
-  long B;
-  long C;
-  long ip;
+class Computer(T) {
+  T A;
+  T B;
+  T C;
+  T ip;
 
   enum Instruction: long {
     iadv = 0,
@@ -17,22 +17,22 @@ class Computer {
     ibxc = 4,
     iout = 5,
     ibdv = 6,
-    icdv = 7    
+    icdv = 7
   }
-  
-  this(long A, long B, long C) {
-    this.A = A;
-    this.B = B;
-    this.C = C;
+
+  this(T A, T B, T C) {
+    this.A = T(A);
+    this.B = T(B);
+    this.C = T(C);
   }
 
   override string toString() const {
     return format("(ip=%d A=%d B=%d C=%d)", ip, A, B, C);
   }
 
-  long combo_operand(long operand) {
+  T combo_operand(long operand) {
     if (operand < 4) {
-      return operand;
+      return T(operand);
     }
     switch (operand) {
     case 4: return this.A;
@@ -44,17 +44,17 @@ class Computer {
   }
 
   long iout(long operand) {
-    auto c_op = combo_operand(operand);
-    auto ret = c_op % 8;
+    T c_op = combo_operand(operand);
+    T ret = c_op % 8;
     //writeln("iout: ", ret);
     return ret;
   }
 
   void iadv(long operand) {
-    auto c_op = combo_operand(operand);
-    auto ret = this.A / (pow(2, c_op));
+    T c_op = combo_operand(operand);
+    T ret = this.A / (pow(2, c_op));
     //writeln("adv: ", operand);
-    this.A = cast(long) ret;
+    this.A = cast(T) ret;
   }
 
   void ibxl(long operand) {
@@ -62,7 +62,7 @@ class Computer {
   }
 
   void ibst(long operand) {
-    auto c_op = combo_operand(operand);
+    T c_op = combo_operand(operand);
     this.B = c_op % 8;
   }
 
@@ -78,7 +78,7 @@ class Computer {
   }
 
   void ibdv(long operand) {
-    auto c_op = combo_operand(operand);
+    T c_op = combo_operand(operand);
     this.B = this.A / (pow(2, c_op));
   }
 
@@ -86,7 +86,7 @@ class Computer {
     auto c_op = combo_operand(operand);
     this.C = this.A / (pow(2, c_op));
   }
-  
+
   long[] run_program(in long[] program) in {
     assert(program.length % 2 == 0);
   } do {
@@ -100,7 +100,7 @@ class Computer {
       auto has_jumped = false;
       //writeln(this);
       //writeln("current instruction: ", cast(Instruction) instruction);
-      
+
       final switch (instruction) {
       case Instruction.iout:
         ret ~= this.iout(operand);
@@ -132,71 +132,78 @@ class Computer {
       }
       //writeln(this);
     }
-    
+
     return ret;
   }
 
   unittest {
-    Computer c = new Computer(0, 0, 9);
+    Computer c = new Computer!long(0, 0, 9);
     c.run_program([2, 6]);
     assert(c.B == 1);
   }
 
   unittest {
-    Computer c = new Computer(10, 0, 0);
+    Computer c = new Computer!long(10, 0, 0);
     auto ret = c.run_program([5, 0, 5, 1, 5, 4]);
     assert(ret == [0, 1, 2]);
     }
-  
+
   unittest {
-    Computer c = new Computer(2024, 0, 0);
+    Computer c = new Computer!long(2024, 0, 0);
     auto ret = c.run_program([0,1,5,4,3,0]);
     assert(ret == [4,2,5,6,7,7,7,7,3,1,0]);
     assert(c.A == 0);
   }
-  
+
   unittest {
-    Computer c = new Computer(0, 29, 0);
+    Computer c = new Computer!long(0, 29, 0);
     c.run_program([1, 7]);
     assert(c.B == 26);
   }
 
   unittest {
-    Computer c = new Computer(0, 2024, 43_690);
+    Computer c = new Computer!long(0, 2024, 43_690);
     c.run_program([4, 0]);
     assert(c.B == 44_354);
-    }
+  }
 }
 
 string part1(in Dinput content) {
-  auto computer = new Computer(content.A, content.B, content.C);
+  auto computer = new Computer!long(content.A, content.B, content.C);
   auto output = computer.run_program(content.program);
-  writeln(output);
   return output.map!(to!string).join(",");
 }
 
-ulong part2(in Dinput content) {
+struct Queue_Value {
+  ulong reg_a;
+  ulong nb_correct_digits;
+}
 
-  auto found = 0;
-  auto max = uint.max;
-  foreach (i; parallel(iota(100_000_000, max))) {
-    if (found == 0) {
-      auto computer = new Computer(i, content.B, content.C);
+ulong part2(in Dinput content) {
+  auto queue = DList!Queue_Value();
+
+  queue.insertBack(Queue_Value(0, 0));
+
+  while (! queue.empty) {
+    Queue_Value curr = queue.front;
+    queue.removeFront();
+
+    foreach (v; 0..8) {
+      ulong tmp_new_A = (curr.reg_a << 3) | v;
+      auto computer = new Computer!ulong(tmp_new_A, content.B, content.C);
       auto output = computer.run_program(content.program);
-      if (output == content.program) {
-        writeln("found: ", i);
-        found = i;
+
+      if (output[0] == content.program[$ - curr.nb_correct_digits - 1]) {
+        if (curr.nb_correct_digits == content.program.length - 1) {
+          return tmp_new_A;
+        } else {
+          queue.insertBack(Queue_Value(tmp_new_A, curr.nb_correct_digits + 1));
+        }
       }
-      if (i % 10_000 == 0) {
-        writeln(">> ", (i / (cast(double) max)) * 100);
-      }
-    } else {
-      if (i % 10_000 == 0) {
-        writeln(":: ", (i / (cast(double) max)) * 100);
-      }
+
     }
   }
-  return found;
+  assert(0);
 }
 
 struct Dinput {
