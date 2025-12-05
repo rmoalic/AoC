@@ -38,13 +38,12 @@ in
 end
 
 fun decompose 0 = []
-  | decompose n = decompose (LargeInt.div (n,10)) @ [LargeInt.mod (n, 10)]
+  | decompose n = decompose (LargeInt.div (n,10)) @ [LargeInt.toInt (LargeInt.mod (n, 10))]
 
 fun maxNJoltage n batt = let
     fun isPosible [] _ matched = (true, matched)
       | isPosible _ [] matched = (false, matched)
       | isPosible (h :: t) l matched = let
-          (*val _ = print ("search: " ^ LargeInt.toString h ^ "\n")*)
           val position = findPosition h l
       in
         case position of
@@ -54,7 +53,6 @@ fun maxNJoltage n batt = let
     fun findPosible (0 : LargeInt.int) = NONE
       | findPosible (c : LargeInt.int) = let
           val posible: (bool * int) = isPosible (decompose c) batt 0
-          (*val _ = print (LargeInt.toString c ^ " - " ^ Int.toString (#2 posible) ^ "\n")*)
       in
           if (#1 posible)
           then SOME (c)
@@ -82,7 +80,6 @@ val d = map maxJoltage data
 val part1 = List.foldl Int.+ 0 d;
 val _ = print ("solution part 1: " ^ (Int.toString (part1)) ^ "\n");
 
-val data2 = map (fn x => map Int.toLarge x) data
-val d2 = map (maxNJoltage 12) data2
+val d2 = map (maxNJoltage 12) data
 val part2 = List.foldl LargeInt.+ 0 d2;
 val _ = print ("solution part 2: " ^ (LargeInt.toString (part2)) ^ "\n");
