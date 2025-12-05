@@ -4,9 +4,6 @@ fun stripLast str = String.substring(str, 0, ((String.size str) - 1));
 
 exception ParseError;
 
-fun power (x, 0) = 1
-  | power (x, n) = LargeInt.* (power (x, n - 1), x)
-
 fun max (l: int list) =
     case l of
         [] => raise Fail "max of empty list"
@@ -26,7 +23,22 @@ fun maxJoltage batt = let
 in
     10 * (#1 first) + (#1 second)
 end
-fun printList xs = print((String.concatWith ", " (map Int.toString xs)) ^ "\n");
+
+fun maxNJoltage_better n batt = let
+    fun joltage 0 acc l = acc
+      | joltage _ acc [] = acc
+      | joltage n acc l = let
+        val (next, next_i) = max (List.take (l, (List.length l - (n - 1))))
+    in
+        joltage (n - 1) (LargeInt.+ (LargeInt.* (10, acc), Int.toLarge next)) (List.drop (l, next_i + 1))
+    end
+in
+    joltage n 0 batt
+end
+
+(* BEGIN : i did not think the max method would work for more than 2 digits. Got the result with this *)
+fun power (x, 0) = 1
+  | power (x, n) = LargeInt.* (power (x, n - 1), x)
 
 fun findPosition v l = let
     fun find va (h :: t) n = if va = h
@@ -62,6 +74,8 @@ in
     Option.valOf (findPosible (LargeInt.- (power (10, n), 1)))
 end
 
+(* END *)
+
 fun parseInputLine line: int list = map (fn n => Char.ord n - Char.ord #"0") (String.explode line)
 
 fun parseInputFile file = let
@@ -80,6 +94,6 @@ val d = map maxJoltage data
 val part1 = List.foldl Int.+ 0 d;
 val _ = print ("solution part 1: " ^ (Int.toString (part1)) ^ "\n");
 
-val d2 = map (maxNJoltage 12) data
+val d2 = map (maxNJoltage_better 12) data
 val part2 = List.foldl LargeInt.+ 0 d2;
 val _ = print ("solution part 2: " ^ (LargeInt.toString (part2)) ^ "\n");
