@@ -30,9 +30,12 @@ fun toDynamic board = case board of
                           EMPTY => EMPTY
                         | START => START
                         | SPLITTER => SPLITTER
-                        | _ => raise Fail
+                        | EXT b => raise Fail
 fun toDynamicList (board: BaseBoardToken list) : DynamicBoardToken list = map toDynamic board
 fun firstRow (f : BaseBoardToken list) = List.map (fn x => if isStart x then EXT BEAM else EMPTY) f
+fun firstRowPos [] pos = raise Fail
+  | firstRowPos [x] pos = pos
+  | firstRowPos (x :: xs) pos = if isStart x then pos else firstRowPos xs (pos + 1)
 fun nextRow (curr : DynamicBoardToken list) = List.map (fn x => if isBeam x then EXT BEAM else EMPTY) curr
 fun mergeRow (base: BaseBoardToken list) (row: DynamicBoardToken list) = let
     val nb_splitter = ref 0;
@@ -57,7 +60,6 @@ fun mergeRow (base: BaseBoardToken list) (row: DynamicBoardToken list) = let
 in
     (List.rev (merge (toDynamicList base) (row) []), ! nb_splitter)
 end
-
 fun compute map = let
     val first = firstRow (hd map)
     val nb_split = ref 0
@@ -71,6 +73,79 @@ fun compute map = let
     val ret = loop (tl map) first
 in
     (ret, !nb_split)
+end
+
+fun mergeRow2 (base: BaseBoardToken list) pos = let
+    val p = List.nth (base, pos)
+in
+    if isSplitter p
+    then ((if pos > 0 andalso isEmpty (List.nth (base, pos - 1))
+           then SOME(pos-1)
+           else NONE),
+          (if pos + 1 < List.length base andalso isEmpty (List.nth (base, pos + 1))
+           then SOME(pos+1)
+           else NONE))
+    else (NONE, NONE)
+end
+
+fun hashInt (x : word) : word = let (* from stackoverflow *)
+    val C = 0wx45d9f3b;
+    val x1 = (Word.xorb (Word.>> (x, 0w16), x)) * C;
+    val x2 = (Word.xorb (Word.>> (x1, 0w16), x1)) * C
+in
+    Word.xorb (Word.>> (x2, 0w16), x2)
+end
+fun hash_array (type_list : BaseBoardToken list) : word = let
+    fun type_to_seed t =
+        case t of
+            EMPTY => 0w101
+          | START => 0w103
+          | SPLITTER => 0w107;
+
+    fun combine_simple (type_item, current_hash) = let
+        val seed = type_to_seed type_item
+        val new_hash = Word.xorb ((current_hash * 0w31), seed)
+      in
+        new_hash
+      end
+  in
+    List.foldl combine_simple 0w7 type_list
+  end
+
+fun compute2 map = let
+    val length = List.length map
+    val firstPos = firstRowPos (hd map) 0
+    fun chash (v: (int * int)) = Word.xorb ((hashInt (Word.fromInt (#1 v))), (hashInt (Word.fromInt (#2 v))))
+    fun csame (a: (int * int), b: (int * int)) = #2 a = #2 b andalso #1 a = #1 b
+    val cache = HashTable.mkTable (chash, csame) (20, Fail)
+    fun cloop (idx_map: int) (next: int) : LargeInt.int = let
+        val cache_entry = HashTable.find cache (idx_map, next)
+    in
+        case cache_entry of
+            SOME (v: LargeInt.int) => v
+          | NONE => let
+              val v = loop idx_map next
+              val _ = HashTable.insert cache ((idx_map, next), v)
+          in
+              v
+          end
+    end
+    and loop idx_map next =
+        if idx_map >= length
+        then 1
+        else  let
+          val b = List.nth (map, idx_map)
+          val merge =  mergeRow2 b next
+      in
+          case merge of
+              (NONE, NONE) => cloop (idx_map+1) next
+            | (SOME a, NONE) => cloop (idx_map+1) a
+            | (NONE, SOME b) => cloop (idx_map+1) b
+            | (SOME a, SOME b) => LargeInt.+ ((cloop (idx_map+1) a), (cloop (idx_map+1) b))
+      end
+    val ret = cloop 0 firstPos
+in
+    ret
 end
 
 fun TypeToToken (t: 'a BoardToken) =
@@ -112,8 +187,5 @@ printMap (#1 d);
 val part1 = (#2 d);
 val _ = print ("solution part 1: " ^ (Int.toString (part1)) ^ "\n");
 
-(*
-Val d2 = simplifyRanges (#1 data)
-val part2 = List.foldl LargeInt.+ 0 (map rangeSize d2)
+val part2 = compute2 data;
 val _ = print ("solution part 2: " ^ (LargeInt.toString (part2)) ^ "\n");
-*)
