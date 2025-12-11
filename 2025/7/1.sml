@@ -114,7 +114,8 @@ fun hash_array (type_list : BaseBoardToken list) : word = let
 
 fun compute2 map = let
     val length = List.length map
-    val firstPos = firstRowPos (hd map) 0
+    val vec = Vector.fromList map
+    val firstPos = firstRowPos (Vector.sub (vec, 0)) 0
     fun chash (v: (int * int)) = Word.xorb ((hashInt (Word.fromInt (#1 v))), (hashInt (Word.fromInt (#2 v))))
     fun csame (a: (int * int), b: (int * int)) = #2 a = #2 b andalso #1 a = #1 b
     val cache = HashTable.mkTable (chash, csame) (20, Fail)
@@ -134,7 +135,7 @@ fun compute2 map = let
         if idx_map >= length
         then 1
         else  let
-          val b = List.nth (map, idx_map)
+          val b = Vector.sub (vec, idx_map)
           val merge =  mergeRow2 b next
       in
           case merge of
